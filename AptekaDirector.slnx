@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="AptekaDirector/AptekaDirector.vcxproj" Id="35b6c2b5-b340-40cb-859e-4dc829e691ed" />
+</Solution>

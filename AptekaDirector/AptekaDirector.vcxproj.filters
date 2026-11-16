@@ -1,0 +1,83 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Исходные файлы">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Файлы заголовков">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Файлы ресурсов">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="sql">
+      <UniqueIdentifier>{96a62b64-7b34-46b8-82c2-f2e6c08c9126}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Файлы заголовков\src">
+      <UniqueIdentifier>{c9e4121a-1ad9-415a-a012-eee10b698373}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Файлы заголовков\src\models">
+      <UniqueIdentifier>{c464a364-e7c6-4888-8347-4c6ddac746ac}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Файлы заголовков\src\db">
+      <UniqueIdentifier>{4872c64f-11a4-47c6-9016-da0241373227}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Файлы заголовков\src\services">
+      <UniqueIdentifier>{68eb8174-79d6-49aa-9b39-28c2e30a376a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Файлы заголовков\src\utils">
+      <UniqueIdentifier>{dc00b15b-f517-4f14-bf78-602c48c1525c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Исходные файлы\src">
+      <UniqueIdentifier>{49391d65-7b6f-4ffc-8d48-1a8ce7d6a012}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Исходные файлы\src\db">
+      <UniqueIdentifier>{26929436-c61a-49dd-a1e8-6e59b6d1fe7b}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="AptekaDirector.cpp">
+      <Filter>Исходные файлы\src</Filter>
+    </ClCompile>
+    <ClCompile Include="Database.cpp">
+      <Filter>Исходные файлы\src\db</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="create_database.sql">
+      <Filter>sql</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="config.h">
+      <Filter>Файлы заголовков\src</Filter>
+    </ClInclude>
+    <ClInclude Include="Product.h">
+      <Filter>Файлы заголовков\src\models</Filter>
+    </ClInclude>
+    <ClInclude Include="Batch.h">
+      <Filter>Файлы заголовков\src\models</Filter>
+    </ClInclude>
+    <ClInclude Include="User.h">
+      <Filter>Файлы заголовков\src\models</Filter>
+    </ClInclude>
+    <ClInclude Include="Database.h">
+      <Filter>Файлы заголовков\src\db</Filter>
+    </ClInclude>
+    <ClInclude Include="AuthService.h">
+      <Filter>Файлы заголовков\src\services</Filter>
+    </ClInclude>
+    <ClInclude Include="SaleService.h">
+      <Filter>Файлы заголовков\src\services</Filter>
+    </ClInclude>
+    <ClInclude Include="ReportService.h">
+      <Filter>Файлы заголовков\src\services</Filter>
+    </ClInclude>
+    <ClInclude Include="Hasher.h">
+      <Filter>Файлы заголовков\src\utils</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
