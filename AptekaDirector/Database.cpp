@@ -1,165 +1,177 @@
 ﻿// ============================================================
 // Database.cpp — реализация класса Database
-// Орловский М.А., группа 582572, БГУИР, 2026
 // ============================================================
 #include "Database.h"
-#include <comdef.h>
-#include <string>
+#include "Exceptions.h"
+#include <sstream>
+#include <algorithm>
+#include <cctype>
 
-namespace Db {
+Database::Database() : hEnv(SQL_NULL_HENV), hDbc(SQL_NULL_HDBC), connected(false) {
+    SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &hEnv);
+    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
+        throw DatabaseException("Не удалось создать ODBC environment.");
+    }
+    SQLSetEnvAttr(hEnv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0);
+}
 
-    Database::Database() : m_inTransaction(false) {
-        if (FAILED(::CoInitialize(nullptr))) {
-            throw DatabaseException(L"Не удалось инициализировать COM");
+Database::~Database() {
+    if (connected) disconnect();
+    if (hDbc != SQL_NULL_HDBC) SQLFreeHandle(SQL_HANDLE_DBC, hDbc);
+    if (hEnv != SQL_NULL_HENV) SQLFreeHandle(SQL_HANDLE_ENV, hEnv);
+}
+
+void Database::connect(const std::wstring& connString) {
+    SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_DBC, hEnv, &hDbc);
+    checkError(ret, SQL_HANDLE_ENV, hEnv, "SQLAllocHandle(Dbc)");
+
+    SQLSMALLINT outLen;
+    wchar_t outConn[1024];
+    ret = SQLDriverConnectW(hDbc, NULL,
+        (SQLWCHAR*)connString.c_str(), (SQLSMALLINT)connString.length(),
+        outConn, 1024, &outLen, SQL_DRIVER_NOPROMPT);
+    checkError(ret, SQL_HANDLE_DBC, hDbc, "SQLDriverConnect");
+
+    connected = true;
+}
+
+void Database::disconnect() {
+    if (connected) {
+        SQLDisconnect(hDbc);
+        connected = false;
+    }
+}
+
+std::wstring Database::escapeString(const std::wstring& str) {
+    std::wstring res;
+    for (wchar_t c : str) {
+        if (c == L'\'') res += L"''";
+        else res += c;
+    }
+    return res;
+}
+
+std::wstring Database::substituteParams(const std::wstring& sql, const std::vector<Value>& params) {
+    std::wstring result;
+    size_t paramIdx = 0;
+
+    for (size_t i = 0; i < sql.length(); ++i) {
+        if (sql[i] == L'?' && paramIdx < params.size()) {
+            const auto& val = params[paramIdx++];
+            if (std::holds_alternative<std::nullptr_t>(val)) {
+                result += L"NULL";
+            }
+            else if (std::holds_alternative<int>(val)) {
+                result += std::to_wstring(std::get<int>(val));
+            }
+            else if (std::holds_alternative<double>(val)) {
+                result += std::to_wstring(std::get<double>(val));
+            }
+            else if (std::holds_alternative<std::wstring>(val)) {
+                result += L"N'" + escapeString(std::get<std::wstring>(val)) + L"'";
+            }
         }
-        m_connection.CreateInstance(__uuidof(Connection));
-    }
-
-    Database::~Database() {
-        try {
-            if (m_inTransaction) rollbackTransaction();
-            disconnect();
-        }
-        catch (...) {}
-        ::CoUninitialize();
-    }
-
-    void Database::connect(const std::wstring& connectionString) {
-        try {
-            _bstr_t connStr(connectionString.c_str());
-            m_connection->Open(connStr, L"", L"", adConnectUnspecified);
-        }
-        catch (const _com_error& e) {
-            // Получаем описание ошибки напрямую как wstring
-            std::wstring msg = L"Ошибка подключения к SQL Server: ";
-            msg += (const wchar_t*)_bstr_t(e.Description());
-            throw DatabaseException(msg);
+        else {
+            result += sql[i];
         }
     }
+    return result;
+}
 
-    void Database::disconnect() {
-        if (m_connection && m_connection->State == adStateOpen) {
-            m_connection->Close();
-        }
+void Database::checkError(SQLRETURN ret, SQLSMALLINT handleType, SQLHANDLE handle, const std::string& context) {
+    if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) return;
+
+    SQLWCHAR sqlState[6], message[256];
+    SQLINTEGER nativeError;
+    SQLSMALLINT msgLen;
+    SQLGetDiagRecW(handleType, handle, 1, sqlState, &nativeError, message, 256, &msgLen);
+
+    std::wstring wmsg(message, msgLen);
+    std::string errMsg(context + ": " + std::string(wmsg.begin(), wmsg.end()));
+    throw DatabaseException(errMsg);
+}
+
+ResultSet Database::executeInternal(const std::wstring& sql, const std::vector<Value>& params) {
+    if (!connected) throw DatabaseException("Нет соединения с БД.");
+
+    SQLHSTMT hStmt;
+    SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hStmt);
+    checkError(ret, SQL_HANDLE_DBC, hDbc, "SQLAllocHandle(Stmt)");
+
+    std::wstring finalSql = substituteParams(sql, params);
+
+    ret = SQLExecDirectW(hStmt, (SQLWCHAR*)finalSql.c_str(), (SQLINTEGER)finalSql.length());
+    if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO && ret != SQL_NO_DATA) {
+        SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+        checkError(ret, SQL_HANDLE_STMT, hStmt, "SQLExecDirect");
     }
 
-    bool Database::isConnected() const {
-        return m_connection && m_connection->State == adStateOpen;
-    }
+    ResultSet result;
+    SQLSMALLINT colCount = 0;
+    SQLNumResultCols(hStmt, &colCount);
 
-    void Database::beginTransaction() {
-        if (!isConnected())
-            throw DatabaseException(L"Соединение не установлено");
-        m_connection->BeginTrans();
-        m_inTransaction = true;
-    }
+    if (colCount > 0) {
+        while (SQLFetch(hStmt) == SQL_SUCCESS) {
+            Row row;
+            for (SQLSMALLINT col = 1; col <= colCount; ++col) {
+                SQLLEN indicator;
+                wchar_t buffer[1024] = { 0 };
 
-    void Database::commitTransaction() {
-        if (!m_inTransaction) return;
-        m_connection->CommitTrans();
-        m_inTransaction = false;
-    }
+                ret = SQLGetData(hStmt, col, SQL_C_WCHAR, buffer, sizeof(buffer), &indicator);
 
-    void Database::rollbackTransaction() {
-        if (!m_inTransaction) return;
-        m_connection->RollbackTrans();
-        m_inTransaction = false;
-    }
+                if (indicator == SQL_NULL_DATA) {
+                    row.push_back(std::nullptr_t{});
+                }
+                else {
+                    std::wstring val(buffer);
+                    bool isInt = !val.empty() && std::all_of(val.begin(), val.end(),
+                        [](wchar_t c) { return std::isdigit(c) || c == L'-'; });
+                    bool isDouble = !val.empty() && std::all_of(val.begin(), val.end(),
+                        [](wchar_t c) { return std::isdigit(c) || c == L'.' || c == L'-'; });
 
-    _RecordsetPtr Database::executeQuery(const std::wstring& sql) {
-        if (!isConnected())
-            throw DatabaseException(L"Соединение не установлено");
-
-        _RecordsetPtr rs;
-        rs.CreateInstance(__uuidof(Recordset));
-        _bstr_t query(sql.c_str());
-
-        try {
-            rs->Open(query, m_connection.GetInterfacePtr(),
-                adOpenStatic, adLockOptimistic, adCmdText);
-        }
-        catch (const _com_error& e) {
-            std::wstring msg = L"Ошибка выполнения запроса: ";
-            msg += (const wchar_t*)_bstr_t(e.Description());
-            throw DatabaseException(msg);
-        }
-        return rs;
-    }
-
-    int Database::executeNonQuery(const std::wstring& sql) {
-        _variant_t recordsAffected;
-        _bstr_t query(sql.c_str());
-        m_connection->Execute(query, &recordsAffected, adExecuteNoRecords);
-        return recordsAffected.intVal;
-    }
-
-    _RecordsetPtr Database::executeParameterized(
-        const std::wstring& sql,
-        const std::vector<std::tuple<std::wstring, DataTypeEnum, _variant_t>>& params)
-    {
-        _CommandPtr cmd;
-        if (FAILED(cmd.CreateInstance(__uuidof(Command)))) {
-            throw DatabaseException(L"Не удалось создать объект Command");
-        }
-        if (!isConnected()) {
-            throw DatabaseException(L"Соединение с базой данных не установлено");
-        }
-
-        cmd->ActiveConnection = m_connection;
-        cmd->CommandText = _bstr_t(sql.c_str());
-        cmd->CommandType = adCmdText;
-
-        try {
-            int paramIndex = 1;
-            for (const auto& p : params) {
-                const std::wstring& paramName = std::get<0>(p);
-                DataTypeEnum dataType = std::get<1>(p);
-                _variant_t value = std::get<2>(p);
-
-                long size = 0;
-                if (dataType == adVarWChar || dataType == adVarChar) {
-                    if (value.vt == VT_BSTR) {
-                        size = SysStringLen(value.bstrVal);
+                    if (isInt) {
+                        row.push_back(std::stoi(val));
                     }
-                    else if (value.vt == (VT_BSTR | VT_BYREF)) {
-                        size = SysStringLen(*value.pbstrVal);
+                    else if (isDouble && val.find(L'.') != std::wstring::npos) {
+                        row.push_back(std::stod(val));
                     }
                     else {
-                        size = 255;
+                        row.push_back(val);
                     }
-                    // ЗАЩИТА ОТ НУЛЕВОГО РАЗМЕРА
-                    if (size == 0) size = 1;
                 }
-                else if (dataType == adInteger) size = 4;
-                else if (dataType == adDouble) size = 8;
-                else if (dataType == adBoolean) size = 1;
-
-                // ИСПРАВЛЕНИЕ: Используем непустое имя параметра (например, @p1, @p2)
-                std::wstring safeParamName = (paramName.empty()) ? L"@p" + std::to_wstring(paramIndex++) : paramName;
-
-                _ParameterPtr param = cmd->CreateParameter(
-                    _bstr_t(safeParamName.c_str()),
-                    dataType,
-                    adParamInput,
-                    size,
-                    value);
-
-                if (param == nullptr) {
-                    throw DatabaseException(L"Не удалось создать параметр запроса");
-                }
-                cmd->Parameters->Append(param);
             }
-
-            _RecordsetPtr rs = cmd->Execute(nullptr, nullptr, adCmdText);
-            return rs;
-        }
-        catch (const _com_error& e) {
-            std::wstring msg = L"Ошибка выполнения SQL-запроса:\n";
-            msg += L"SQL: " + sql + L"\n";
-            msg += L"Описание: ";
-            msg += (const wchar_t*)_bstr_t(e.Description());
-            throw DatabaseException(msg);
+            result.push_back(row);
         }
     }
 
-} // namespace Db
+    SQLFreeHandle(SQL_HANDLE_STMT, hStmt);
+    return result;
+}
+
+ResultSet Database::executeQuery(const std::wstring& sql, const std::vector<Value>& params) {
+    return executeInternal(sql, params);
+}
+
+std::optional<Row> Database::executeQuerySingle(const std::wstring& sql, const std::vector<Value>& params) {
+    ResultSet rs = executeInternal(sql, params);
+    if (rs.empty()) return std::nullopt;
+    return rs[0];
+}
+
+void Database::executeNonQuery(const std::wstring& sql, const std::vector<Value>& params) {
+    executeInternal(sql, params);
+}
+
+void Database::beginTransaction() {
+    SQLSetConnectAttr(hDbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_OFF, 0);
+}
+
+void Database::commit() {
+    SQLEndTran(SQL_HANDLE_DBC, hDbc, SQL_COMMIT);
+    SQLSetConnectAttr(hDbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_ON, 0);
+}
+
+void Database::rollback() {
+    SQLEndTran(SQL_HANDLE_DBC, hDbc, SQL_ROLLBACK);
+    SQLSetConnectAttr(hDbc, SQL_ATTR_AUTOCOMMIT, (SQLPOINTER)SQL_AUTOCOMMIT_ON, 0);
+}

@@ -45,6 +45,15 @@
     <ClCompile Include="Database.cpp">
       <Filter>Исходные файлы\src\db</Filter>
     </ClCompile>
+    <ClCompile Include="AuthService.cpp">
+      <Filter>Исходные файлы\src</Filter>
+    </ClCompile>
+    <ClCompile Include="SaleService.cpp">
+      <Filter>Исходные файлы\src</Filter>
+    </ClCompile>
+    <ClCompile Include="ReportService.cpp">
+      <Filter>Исходные файлы\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="create_database.sql">
@@ -77,6 +86,9 @@
       <Filter>Файлы заголовков\src\services</Filter>
     </ClInclude>
     <ClInclude Include="Hasher.h">
+      <Filter>Файлы заголовков\src\utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Exceptions.h">
       <Filter>Файлы заголовков\src\utils</Filter>
     </ClInclude>
   </ItemGroup>

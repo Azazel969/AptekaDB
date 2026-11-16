@@ -115,7 +115,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>crypt32.lib</AdditionalDependencies>
+      <AdditionalDependencies>odbc32.lib</AdditionalDependencies>
     </Link>
     <Manifest>
       <EnableSegmentHeap>true</EnableSegmentHeap>
@@ -141,7 +141,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="AptekaDirector.cpp" />
+    <ClCompile Include="AuthService.cpp" />
     <ClCompile Include="Database.cpp" />
+    <ClCompile Include="ReportService.cpp" />
+    <ClCompile Include="SaleService.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="create_database.sql" />
@@ -151,6 +154,7 @@
     <ClInclude Include="Batch.h" />
     <ClInclude Include="config.h" />
     <ClInclude Include="Database.h" />
+    <ClInclude Include="Exceptions.h" />
     <ClInclude Include="Hasher.h" />
     <ClInclude Include="Product.h" />
     <ClInclude Include="ReportService.h" />
