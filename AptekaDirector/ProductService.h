@@ -1,26 +1,15 @@
 #pragma once
 #include "Database.h"
+#include "Product.h"
 #include <vector>
-#include <string>
-
-struct ProductItem {
-    int productId;
-    std::wstring productName;
-    std::wstring mnn;
-    std::wstring dosageForm;
-    std::wstring manufacturerName;
-    std::wstring categoryName;
-    std::wstring barcode;
-    int totalQuantity;
-    double salePrice;
-};
 
 class ProductService {
 public:
-    explicit ProductService(Database& db);
-
+    ProductService(Database& db);
     void showAll();
     void addProduct();
+    void editProduct(int productId);
+    void deleteProduct(int productId);
     void searchProduct();
     void showLowStock();
 

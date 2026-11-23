@@ -6,12 +6,13 @@
 // ============================================================
 #pragma once
 #include "Database.h"
+#include "Exceptions.h"
 
 class SaleService {
 public:
-    explicit SaleService(Database& db);
-    int registerSale(int productId, int quantity, int userId);
-
+    SaleService(Database& db);
+    int registerSale(int productId, int quantity, int userId, const std::wstring& receiptNo);
+    int registerReturn(int productId, int quantity, int userId, const std::wstring& receiptNo);
 private:
     Database& db;
 };

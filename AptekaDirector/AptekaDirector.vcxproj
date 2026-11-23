@@ -147,10 +147,12 @@
     <ClCompile Include="ReportService.cpp" />
     <ClCompile Include="SaleService.cpp" />
     <ClCompile Include="SupplierService.cpp" />
+    <ClCompile Include="SupplyService.cpp" />
     <ClCompile Include="UserService.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="create_database.sql" />
+    <None Include="database.sql" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AuthService.h" />
@@ -164,6 +166,7 @@
     <ClInclude Include="ReportService.h" />
     <ClInclude Include="SaleService.h" />
     <ClInclude Include="SupplierService.h" />
+    <ClInclude Include="SupplyService.h" />
     <ClInclude Include="User.h" />
     <ClInclude Include="UserService.h" />
   </ItemGroup>

@@ -63,9 +63,15 @@
     <ClCompile Include="UserService.cpp">
       <Filter>Исходные файлы\src</Filter>
     </ClCompile>
+    <ClCompile Include="SupplyService.cpp">
+      <Filter>Исходные файлы\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="create_database.sql">
+      <Filter>sql</Filter>
+    </None>
+    <None Include="database.sql">
       <Filter>sql</Filter>
     </None>
   </ItemGroup>
@@ -107,6 +113,9 @@
       <Filter>Файлы заголовков\src\services</Filter>
     </ClInclude>
     <ClInclude Include="UserService.h">
+      <Filter>Файлы заголовков\src\services</Filter>
+    </ClInclude>
+    <ClInclude Include="SupplyService.h">
       <Filter>Файлы заголовков\src\services</Filter>
     </ClInclude>
   </ItemGroup>

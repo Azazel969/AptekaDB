@@ -3,12 +3,12 @@
 
 class SupplierService {
 public:
-    explicit SupplierService(Database& db);
-
+    SupplierService(Database& db);
     void showAll();
     void addSupplier();
+    void editSupplier(int supplierId);
+    void deleteSupplier(int supplierId);
     void searchSupplier();
-
 private:
     Database& db;
 };
