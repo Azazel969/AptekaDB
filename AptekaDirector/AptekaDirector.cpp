@@ -4,6 +4,8 @@
 #include <iostream>
 #include <optional>
 #include <windows.h>
+#include <io.h>       // Для _setmode и _fileno
+#include <fcntl.h>    // Для _O_U16TEXT
 
 #include "config.h"
 #include "User.h"
@@ -17,8 +19,14 @@
 #include "UserService.h"
 
 void setupConsoleEncoding() {
-    SetConsoleOutputCP(1251);  
-    SetConsoleCP(1251);        
+    // 1. Включаем режим UTF-16 (Unicode) для стандартных потоков
+    _setmode(_fileno(stdout), _O_U16TEXT);
+    _setmode(_fileno(stdin), _O_U16TEXT);
+    _setmode(_fileno(stderr), _O_U16TEXT);
+
+    // 2. Устанавливаем кодовую страницу консоли в UTF-16LE (1200)
+    SetConsoleOutputCP(1200);
+    SetConsoleCP(1200);
     setlocale(LC_ALL, "Russian");
 }
 

@@ -1,4 +1,4 @@
-#include "SaleService.h"
+﻿#include "SaleService.h"
 #include "Exceptions.h"
 
 //#define NOMINMAX
