@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <io.h>
 #include <fcntl.h>
+#include <string>
 
 #include "config.h"
 #include "User.h"
@@ -14,36 +15,41 @@
 #include "ProductService.h"
 #include "SupplierService.h"
 #include "UserService.h"
-#include "SupplyService.h"
 
-static std::wstring utf8_to_wstring(const std::string& str) {
+// Универсальная функция для конвертации узких строк в wide strings
+static std::wstring convert_to_wstring(const std::string& str) {
     if (str.empty()) return std::wstring();
     int size_needed = MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0);
+    if (size_needed > 0) {
+        std::wstring wstrTo(size_needed, 0);
+        if (MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &wstrTo[0], size_needed) > 0) {
+            return wstrTo;
+        }
+    }
+    size_needed = MultiByteToWideChar(1251, 0, &str[0], (int)str.size(), NULL, 0);
     std::wstring wstrTo(size_needed, 0);
-    MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &wstrTo[0], size_needed);
+    MultiByteToWideChar(1251, 0, &str[0], (int)str.size(), &wstrTo[0], size_needed);
     return wstrTo;
 }
 
 void setupConsoleEncoding() {
-    _setmode(_fileno(stdout), _O_U16TEXT);
-    _setmode(_fileno(stdin), _O_U16TEXT);
-    _setmode(_fileno(stderr), _O_U16TEXT);
-    SetConsoleOutputCP(1200);
-    SetConsoleCP(1200);
+    SetConsoleOutputCP(1251);
+    SetConsoleCP(1251);
     setlocale(LC_ALL, "Russian");
 }
 
 void showMainMenu(const Models::User& user) {
     std::wcout << L"\n========================================\n";
     std::wcout << L" Программная система директора аптеки\n";
-    std::wcout << L" Пользователь: " << user.fullName << L" (" << (int)user.role << L")\n";
+    std::wcout << L" Пользователь: " << user.fullName << L"\n";
     std::wcout << L"========================================\n";
     std::wcout << L"1. Товары\n";
     std::wcout << L"2. Поставщики\n";
-    if (user.canAccess(L"ManageSupplies")) std::wcout << L"3. Поставки (Приёмка)\n";
-    std::wcout << L"4. Регистрация продажи / Возврата\n";
-    std::wcout << L"5. Отчёты\n";
-    if (user.canAccess(L"ManageUsers")) std::wcout << L"6. Сотрудники\n";
+    std::wcout << L"3. Регистрация продажи\n";
+    std::wcout << L"4. Отчёты\n";
+    if (user.canAccess(L"ManageUsers")) {
+        std::wcout << L"5. Сотрудники\n";
+    }
     std::wcout << L"0. Выход\n";
     std::wcout << L"========================================\n";
     std::wcout << L"Ваш выбор: ";
@@ -52,6 +58,7 @@ void showMainMenu(const Models::User& user) {
 int main() {
     try {
         setupConsoleEncoding();
+
         Database db;
         db.connect(Config::CONNECTION_STRING);
         std::wcout << L"Подключение к серверу СУБД установлено.\n";
@@ -86,10 +93,11 @@ int main() {
                         std::wcout << L"Неверный логин или пароль.\n";
                     }
                 }
+                catch (const AppException& e) {
+                    std::wcout << L"Ошибка: " << e.wwhat() << L"\n";
+                }
                 catch (const std::exception& e) {
-                    // Конвертация UTF-8 сообщения в UTF-16 для корректного вывода
-                    std::wstring errorMsg = utf8_to_wstring(e.what());
-                    std::wcout << L"Ошибка: " << errorMsg << L"\n";
+                    std::wcout << L"Системная ошибка: " << convert_to_wstring(e.what()) << L"\n";
                 }
             }
             else if (authChoice == 2) {
@@ -135,106 +143,139 @@ int main() {
         }
 
         std::wcout << L"\nДобро пожаловать, " << currentUser->fullName << L"!\n";
+
         bool running = true;
         while (running) {
             showMainMenu(*currentUser);
-            int choice; std::wcin >> choice;
+            int choice;
+            std::wcin >> choice;
 
             switch (choice) {
             case 1: {
-                std::wcout << L"\n=== Товары ===\n1. Показать все\n2. Добавить\n3. Редактировать\n4. Удалить\n5. Поиск\n6. Низкий остаток\n0. Назад\nВыбор: ";
-                int sub; std::wcin >> sub;
-                ProductService ps(db);
-                if (sub == 1) ps.showAll();
-                else if (sub == 2) ps.addProduct();
-                else if (sub == 3) { int id; std::wcout << L"ID товара: "; std::wcin >> id; ps.editProduct(id); }
-                else if (sub == 4) { int id; std::wcout << L"ID товара: "; std::wcin >> id; ps.deleteProduct(id); }
-                else if (sub == 5) ps.searchProduct();
-                else if (sub == 6) ps.showLowStock();
+                std::wcout << L"\n=== Раздел: Товары ===\n";
+                std::wcout << L"1. Показать все товары\n";
+                std::wcout << L"2. Добавить новый товар\n";
+                std::wcout << L"3. Редактировать товар\n";
+                std::wcout << L"4. Удалить товар\n";
+                std::wcout << L"5. Поиск товара\n";
+                std::wcout << L"6. Товары с низким остатком\n";
+                std::wcout << L"0. Назад\n";
+                std::wcout << L"Ваш выбор: ";
+
+                int subChoice;
+                std::wcin >> subChoice;
+                ProductService productService(db);
+
+                switch (subChoice) {
+                case 1: productService.showAll(); break;
+                case 2: productService.addProduct(); break;
+                case 3: { int id; std::wcout << L"ID товара: "; std::wcin >> id; productService.editProduct(id); break; }
+                case 4: { int id; std::wcout << L"ID товара: "; std::wcin >> id; productService.deleteProduct(id); break; }
+                case 5: productService.searchProduct(); break;
+                case 6: productService.showLowStock(); break;
+                case 0: break;
+                default: std::wcout << L"Неверный выбор.\n";
+                }
                 break;
             }
             case 2: {
-                std::wcout << L"\n=== Поставщики ===\n1. Показать все\n2. Добавить\n3. Редактировать\n4. Удалить\n5. Поиск\n0. Назад\nВыбор: ";
-                int sub; std::wcin >> sub;
-                SupplierService ss(db);
-                if (sub == 1) ss.showAll();
-                else if (sub == 2) ss.addSupplier();
-                else if (sub == 3) { int id; std::wcout << L"ID поставщика: "; std::wcin >> id; ss.editSupplier(id); }
-                else if (sub == 4) { int id; std::wcout << L"ID поставщика: "; std::wcin >> id; ss.deleteSupplier(id); }
-                else if (sub == 5) ss.searchSupplier();
+                std::wcout << L"\n=== Раздел: Поставщики ===\n";
+                std::wcout << L"1. Показать всех поставщиков\n";
+                std::wcout << L"2. Добавить нового поставщика\n";
+                std::wcout << L"3. Поиск поставщика\n";
+                std::wcout << L"0. Назад\n";
+                std::wcout << L"Ваш выбор: ";
+
+                int subChoice;
+                std::wcin >> subChoice;
+                SupplierService supplierService(db);
+
+                switch (subChoice) {
+                case 1: supplierService.showAll(); break;
+                case 2: supplierService.addSupplier(); break;
+                case 3: supplierService.searchSupplier(); break;
+                case 0: break;
+                default: std::wcout << L"Неверный выбор.\n";
+                }
                 break;
             }
             case 3: {
-                if (!currentUser->canAccess(L"ManageSupplies")) { std::wcout << L"Доступ запрещён.\n"; break; }
-                SupplyService sups(db);
-                sups.registerSupply(currentUser->userId);
+                if (!currentUser->canAccess(L"RegisterSale")) {
+                    std::wcout << L"Доступ запрещён.\n";
+                    break;
+                }
+                int productId, quantity;
+                std::wcout << L"ID товара: ";
+                std::wcin >> productId;
+                std::wcout << L"Количество: ";
+                std::wcin >> quantity;
+
+                try {
+                    SaleService saleService(db);
+                    int saleId = saleService.registerSale(productId, quantity, currentUser->userId, L"");
+                    std::wcout << L"Продажа зарегистрирована. ID: " << saleId << L"\n";
+                }
+                catch (const InsufficientStockException& e) {
+                    std::wcout << L"Ошибка: " << e.wwhat() << L"\n";
+                }
+                catch (const AppException& e) {
+                    std::wcout << L"Ошибка: " << e.wwhat() << L"\n";
+                }
+                catch (const std::exception& e) {
+                    std::wcout << L"Критическая ошибка: " << convert_to_wstring(e.what()) << L"\n";
+                }
                 break;
             }
             case 4: {
-                if (!currentUser->canAccess(L"RegisterSale")) { std::wcout << L"Доступ запрещён.\n"; break; }
-                std::wcout << L"\n1. Регистрация продажи\n2. Регистрация возврата\n0. Назад\nВыбор: ";
-                int sub; std::wcin >> sub;
-                if (sub == 1 || sub == 2) {
-                    int productId, quantity; std::wstring receiptNo;
-                    std::wcout << L"ID товара: "; std::wcin >> productId;
-                    std::wcout << L"Количество: "; std::wcin >> quantity;
-                    std::wcout << L"Номер чека (Enter для авто): "; std::wcin.ignore(); std::getline(std::wcin, receiptNo);
-                    if (receiptNo.empty()) receiptNo = L"CHK-" + std::to_wstring(GetTickCount());
+                if (!currentUser->canAccess(L"ViewReports")) {
+                    std::wcout << L"Доступ запрещён.\n";
+                    break;
+                }
+                ReportService reportService(db);
+                auto items = reportService.getExpiringItems(Config::DEFAULT_EXPIRY_WARNING_DAYS);
 
-                    try {
-                        SaleService ss(db);
-                        if (sub == 1) {
-                            int id = ss.registerSale(productId, quantity, currentUser->userId, receiptNo);
-                            std::wcout << L"Продажа зарегистрирована. ID: " << id << L"\n";
-                        }
-                        else {
-                            int id = ss.registerReturn(productId, quantity, currentUser->userId, receiptNo);
-                            std::wcout << L"Возврат зарегистрирован. ID: " << id << L"\n";
-                        }
-                    }
-                    catch (const InsufficientStockException& e) {
-                        std::string msg(e.what()); std::wcout << L"Ошибка: " << std::wstring(msg.begin(), msg.end()) << L"\n";
-                    }
-                    catch (const std::exception& e) {
-                        std::string msg(e.what()); std::wcout << L"Ошибка: " << std::wstring(msg.begin(), msg.end()) << L"\n";
+                std::wcout << L"\nТовары с истекающим сроком годности:\n";
+                std::wcout << L"--------------------------------------\n";
+                if (items.empty()) {
+                    std::wcout << L"Нет товаров с истекающим сроком годности.\n";
+                }
+                else {
+                    for (const auto& item : items) {
+                        std::wcout << item.productName << L" | "
+                            << item.manufacturerName << L" | "
+                            << L"серия " << item.batchNumber << L" | "
+                            << L"ост.: " << item.quantity << L" | "
+                            << L"дней: " << item.daysUntilExpiry << L"\n";
                     }
                 }
                 break;
             }
             case 5: {
-                if (!currentUser->canAccess(L"ViewReports")) { std::wcout << L"Доступ запрещён.\n"; break; }
-                std::wcout << L"\n=== Отчёты ===\n1. Истекающие сроки\n2. Продажи за период\n3. Рентабельность\n0. Назад\nВыбор: ";
-                int sub; std::wcin >> sub;
-                ReportService rs(db);
-                if (sub == 1) {
-                    auto items = rs.getExpiringItems(Config::DEFAULT_EXPIRY_WARNING_DAYS);
-                    std::wcout << L"\nТовары с истекающим сроком:\n";
-                    for (const auto& item : items) std::wcout << item.productName << L" | " << item.batchNumber << L" | ост.: " << item.quantity << L" | дней: " << item.daysUntilExpiry << L"\n";
+                if (!currentUser->canAccess(L"ManageUsers")) {
+                    std::wcout << L"Доступ запрещён. Функция доступна только директору.\n";
+                    break;
                 }
-                else if (sub == 2 || sub == 3) {
-                    std::wstring start, end;
-                    std::wcout << L"Дата начала (ГГГГ-ММ-ДД): "; std::wcin >> start;
-                    std::wcout << L"Дата конца (ГГГГ-ММ-ДД): "; std::wcin >> end;
-                    if (sub == 2) {
-                        auto rep = rs.getSalesReport(start, end);
-                        for (const auto& r : rep) std::wcout << r.productName << L" | Кол-во: " << r.totalQuantity << L" | Выручка: " << r.totalRevenue << L"\n";
-                    }
-                    else {
-                        auto rep = rs.getProfitabilityReport(start, end);
-                        for (const auto& r : rep) std::wcout << r.productName << L" | Затраты: " << r.totalPurchaseCost << L" | Выручка: " << r.totalRevenue << L" | Прибыль: " << r.profit << L"\n";
-                    }
+
+                std::wcout << L"\n=== Раздел: Сотрудники ===\n";
+                std::wcout << L"1. Показать всех сотрудников\n";
+                std::wcout << L"2. Заблокировать пользователя\n";
+                std::wcout << L"3. Разблокировать пользователя\n";
+                std::wcout << L"4. Журнал операций\n";
+                std::wcout << L"0. Назад\n";
+                std::wcout << L"Ваш выбор: ";
+
+                int subChoice;
+                std::wcin >> subChoice;
+                UserService userService(db);
+
+                switch (subChoice) {
+                case 1: userService.showAllUsers(); break;
+                case 2: userService.blockUser(); break;
+                case 3: userService.unblockUser(); break;
+                case 4: userService.showAuditLog(); break;
+                case 0: break;
+                default: std::wcout << L"Неверный выбор.\n";
                 }
-                break;
-            }
-            case 6: {
-                if (!currentUser->canAccess(L"ManageUsers")) { std::wcout << L"Доступ запрещён.\n"; break; }
-                std::wcout << L"\n=== Сотрудники ===\n1. Показать всех\n2. Заблокировать\n3. Разблокировать\n4. Журнал операций\n0. Назад\nВыбор: ";
-                int sub; std::wcin >> sub;
-                UserService us(db);
-                if (sub == 1) us.showAllUsers();
-                else if (sub == 2) us.blockUser();
-                else if (sub == 3) us.unblockUser();
-                else if (sub == 4) us.showAuditLog();
                 break;
             }
             case 0:
@@ -245,11 +286,21 @@ int main() {
                 std::wcout << L"Неверный выбор.\n";
             }
         }
+
         db.disconnect();
+        std::wcout << L"Соединение с сервером закрыто.\n";
         return 0;
     }
-    catch (const std::exception& e) {
-        std::string msg(e.what()); std::wcerr << L"Критическая ошибка: " << std::wstring(msg.begin(), msg.end()) << L"\n";
+    catch (const DatabaseException& e) {
+        std::wcerr << L"Ошибка базы данных: " << e.wwhat() << L"\n";
+        return 1;
+    }
+    catch (const AppException& e) {
+        std::wcerr << L"Ошибка: " << e.wwhat() << L"\n";
         return 2;
+    }
+    catch (const std::exception& e) {
+        std::wcerr << L"Критическая ошибка: " << convert_to_wstring(e.what()) << L"\n";
+        return 3;
     }
 }

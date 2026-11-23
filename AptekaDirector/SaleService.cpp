@@ -1,4 +1,5 @@
 ﻿#include "SaleService.h"
+#include "Exceptions.h"
 #include <algorithm>
 
 SaleService::SaleService(Database& db) : db(db) {}
@@ -8,7 +9,10 @@ int SaleService::registerSale(int productId, int quantity, int userId, const std
     try {
         std::wstring query = L"SELECT BatchId, Quantity, SalePrice FROM Batches WHERE ProductId = ? AND Quantity > 0 ORDER BY ExpiryDate ASC";
         auto batches = db.executeQuery(query, { productId });
-        if (batches.empty()) { db.rollback(); throw InsufficientStockException("Товар отсутствует на складе."); }
+        if (batches.empty()) {
+            db.rollback();
+            throw InsufficientStockException(L"Товар отсутствует на складе.");
+        }
 
         int remainingQty = quantity;
         double totalAmount = 0;
@@ -25,7 +29,10 @@ int SaleService::registerSale(int productId, int quantity, int userId, const std
             if (remainingQty == 0) break;
         }
 
-        if (remainingQty > 0) { db.rollback(); throw InsufficientStockException("Недостаточно товара на складе."); }
+        if (remainingQty > 0) {
+            db.rollback();
+            throw InsufficientStockException(L"Недостаточно товара на складе.");
+        }
 
         int saleId = 0;
         for (const auto& item : toDeduct) {
@@ -48,7 +55,10 @@ int SaleService::registerSale(int productId, int quantity, int userId, const std
         db.commit();
         return saleId;
     }
-    catch (...) { db.rollback(); throw; }
+    catch (...) {
+        db.rollback();
+        throw;
+    }
 }
 
 int SaleService::registerReturn(int productId, int quantity, int userId, const std::wstring& receiptNo) {
@@ -56,7 +66,10 @@ int SaleService::registerReturn(int productId, int quantity, int userId, const s
     try {
         std::wstring query = L"SELECT TOP 1 BatchId, PurchasePrice FROM Batches WHERE ProductId = ? ORDER BY ExpiryDate DESC";
         auto row = db.executeQuerySingle(query, { productId });
-        if (!row.has_value()) { db.rollback(); throw std::runtime_error("Нет партий данного товара для возврата."); }
+        if (!row.has_value()) {
+            db.rollback();
+            throw AppException(L"Нет партий данного товара для возврата.");
+        }
 
         int batchId = std::get<int>((*row)[0]);
         double price = std::get<double>((*row)[1]);
@@ -78,5 +91,8 @@ int SaleService::registerReturn(int productId, int quantity, int userId, const s
         db.commit();
         return saleId;
     }
-    catch (...) { db.rollback(); throw; }
+    catch (...) {
+        db.rollback();
+        throw;
+    }
 }

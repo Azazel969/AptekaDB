@@ -10,7 +10,7 @@
 Database::Database() : hEnv(SQL_NULL_HENV), hDbc(SQL_NULL_HDBC), connected(false) {
     SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &hEnv);
     if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
-        throw DatabaseException("Не удалось создать ODBC environment.");
+        throw DatabaseException(L"Не удалось создать ODBC environment.");
     }
     SQLSetEnvAttr(hEnv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0);
 }
@@ -106,16 +106,24 @@ std::wstring Database::substituteParams(const std::wstring& sql, const std::vect
 // Проверка ошибок ODBC
 // ============================================================
 void Database::checkError(SQLRETURN ret, SQLSMALLINT handleType, SQLHANDLE handle, const std::string& context) {
-    if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) return;
+    if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO || ret == SQL_NO_DATA) return;
 
-    SQLWCHAR sqlState[6], message[512];
+    SQLWCHAR sqlState[6];
     SQLINTEGER nativeError;
-    SQLSMALLINT msgLen;
-    SQLGetDiagRecW(handleType, handle, 1, sqlState, &nativeError, message, 512, &msgLen);
+    SQLWCHAR messageText[512];
+    SQLSMALLINT textLength;
 
-    std::wstring wmsg(message, msgLen);
-    std::string errMsg(context + ": " + std::string(wmsg.begin(), wmsg.end()));
-    throw DatabaseException(errMsg);
+    SQLGetDiagRecW(handleType, handle, 1, sqlState, &nativeError, messageText, 512, &textLength);
+
+    std::wstring errorMsg = L"ODBC Error [";
+    errorMsg += sqlState;
+    errorMsg += L"] ";
+    errorMsg += messageText;
+    errorMsg += L" (Context: ";
+    errorMsg += std::wstring(context.begin(), context.end());
+    errorMsg += L")";
+
+    throw DatabaseException(errorMsg);
 }
 
 // ============================================================
@@ -123,7 +131,7 @@ void Database::checkError(SQLRETURN ret, SQLSMALLINT handleType, SQLHANDLE handl
 // КЛЮЧЕВОЕ: читаем через SQL_C_WCHAR — получаем UTF-16 напрямую
 // ============================================================
 ResultSet Database::executeInternal(const std::wstring& sql, const std::vector<Value>& params) {
-    if (!connected) throw DatabaseException("Нет соединения с БД.");
+    if (!connected) throw DatabaseException(L"Нет соединения с БД.");
 
     SQLHSTMT hStmt;
     SQLRETURN ret = SQLAllocHandle(SQL_HANDLE_STMT, hDbc, &hStmt);

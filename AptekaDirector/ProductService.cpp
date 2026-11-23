@@ -5,13 +5,9 @@ ProductService::ProductService(Database& db) : db(db) {}
 
 void ProductService::printProduct(const ProductItem& p) {
     std::wcout << p.productId << L" | " << p.productName
-        << L" | " << p.mnn
-        << L" | " << p.dosageForm
-        << L" | " << p.dosage
-        << L" | " << p.manufacturerName
-        << L" | " << p.categoryName
-        << L" | " << p.barcode
-        << L" | ост.: " << p.totalQuantity
+        << L" | " << p.mnn << L" | " << p.dosageForm << L" | " << p.dosage
+        << L" | " << p.manufacturerName << L" | " << p.categoryName
+        << L" | " << p.barcode << L" | ост.: " << p.totalQuantity
         << L" | цена: " << p.salePrice << L"\n";
 }
 
@@ -84,13 +80,11 @@ void ProductService::addProduct() {
 }
 
 void ProductService::editProduct(int productId) {
-    std::wstring query = L"SELECT ProductName, MNN, DosageForm, Dosage, Barcode, CategoryId, ManufacturerId, IsPrescription, MinStock FROM Products WHERE ProductId = ?";
+    std::wstring query = L"SELECT ProductName, MNN, DosageForm, Dosage, Barcode, MinStock FROM Products WHERE ProductId = ?";
     auto row = db.executeQuerySingle(query, { productId });
     if (!row.has_value()) { std::wcout << L"Товар не найден.\n"; return; }
 
     std::wcout << L"\n=== Редактирование товара ID: " << productId << L" ===\n";
-    std::wcout << L"Текущее наименование: " << std::get<std::wstring>((*row)[0]) << L"\n";
-
     std::wstring productName, mnn, dosageForm, dosage, barcode;
     std::wcout << L"Новое наименование (Enter чтобы оставить): "; std::wcin.ignore(); std::getline(std::wcin, productName);
     if (productName.empty()) productName = std::get<std::wstring>((*row)[0]);

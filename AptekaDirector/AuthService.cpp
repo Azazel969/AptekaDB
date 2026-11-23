@@ -1,4 +1,5 @@
 ﻿#include "AuthService.h"
+#include "Exceptions.h"
 #include "config.h"
 #include <iostream>
 #include <string>
@@ -11,7 +12,7 @@ std::optional<Models::User> AuthService::login(const std::wstring& login, const 
     auto row = db.executeQuerySingle(query, { login });
 
     if (!row.has_value()) {
-        throw std::runtime_error("Неверный логин или пароль.");
+        throw AppException(L"Неверный логин или пароль.");
     }
 
     Models::User user;
@@ -23,13 +24,13 @@ std::optional<Models::User> AuthService::login(const std::wstring& login, const 
     user.failedAttempts = std::get<int>((*row)[5]);
 
     if (user.isBlocked) {
-        throw std::runtime_error("Учётная запись заблокирована. Обратитесь к администратору.");
+        throw AppException(L"Учётная запись заблокирована. Обратитесь к администратору.");
     }
 
     std::wstring passwordQuery = L"SELECT Password FROM Users WHERE UserId = ?";
     auto pwdRow = db.executeQuerySingle(passwordQuery, { user.userId });
     if (!pwdRow.has_value()) {
-        throw std::runtime_error("Ошибка проверки пароля.");
+        throw AppException(L"Ошибка проверки пароля.");
     }
 
     std::wstring storedPassword = std::get<std::wstring>((*pwdRow)[0]);
@@ -54,7 +55,7 @@ std::optional<Models::User> AuthService::login(const std::wstring& login, const 
                 L"INSERT INTO AuditLog (UserId, OperationType, TableName, RecordId, NewValues) "
                 L"VALUES (?, 'LOGIN_FAIL', 'Users', ?, ?)",
                 { user.userId, user.userId, L"Превышено количество попыток входа. Учётная запись заблокирована." });
-            throw std::runtime_error("Превышено количество попыток. Учётная запись заблокирована.");
+            throw AppException(L"Превышено количество попыток. Учётная запись заблокирована.");
         }
         else {
             db.executeNonQuery(L"UPDATE Users SET FailedAttempts = ? WHERE UserId = ?",
@@ -63,7 +64,7 @@ std::optional<Models::User> AuthService::login(const std::wstring& login, const 
                 L"INSERT INTO AuditLog (UserId, OperationType, TableName, RecordId, NewValues) "
                 L"VALUES (?, 'LOGIN_FAIL', 'Users', ?, ?)",
                 { user.userId, user.userId, L"Неверный пароль. Попытка " + std::to_wstring(newAttempts) });
-            throw std::runtime_error("Неверный логин или пароль.");
+            throw AppException(L"Неверный логин или пароль.");
         }
     }
 }

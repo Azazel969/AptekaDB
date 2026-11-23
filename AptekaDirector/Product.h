@@ -1,7 +1,4 @@
-﻿// ============================================================
-// Product.h — модель товарной позиции
-// ============================================================
-#pragma once
+﻿#pragma once
 #include <string>
 
 namespace Models {
@@ -19,6 +16,7 @@ namespace Models {
     };
 }
 
+// Структура для отображения товара в списке (с данными из связанных таблиц)
 struct ProductItem {
     int productId = 0;
     std::wstring productName;
