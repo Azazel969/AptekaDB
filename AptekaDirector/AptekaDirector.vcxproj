@@ -143,8 +143,11 @@
     <ClCompile Include="AptekaDirector.cpp" />
     <ClCompile Include="AuthService.cpp" />
     <ClCompile Include="Database.cpp" />
+    <ClCompile Include="ProductService.cpp" />
     <ClCompile Include="ReportService.cpp" />
     <ClCompile Include="SaleService.cpp" />
+    <ClCompile Include="SupplierService.cpp" />
+    <ClCompile Include="UserService.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="create_database.sql" />
@@ -157,9 +160,12 @@
     <ClInclude Include="Exceptions.h" />
     <ClInclude Include="Hasher.h" />
     <ClInclude Include="Product.h" />
+    <ClInclude Include="ProductService.h" />
     <ClInclude Include="ReportService.h" />
     <ClInclude Include="SaleService.h" />
+    <ClInclude Include="SupplierService.h" />
     <ClInclude Include="User.h" />
+    <ClInclude Include="UserService.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

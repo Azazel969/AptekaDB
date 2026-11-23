@@ -12,6 +12,9 @@
 #include "SaleService.h"
 #include "ReportService.h"
 #include "Exceptions.h"
+#include "ProductService.h"
+#include "SupplierService.h"
+#include "UserService.h"
 
 void setupConsoleEncoding() {
     SetConsoleOutputCP(1251);
@@ -135,7 +138,56 @@ int main() {
             std::wcin >> choice;
 
             switch (choice) {
+            case 1: {
+                // === ТОВАРЫ ===
+                std::wcout << L"\n=== Раздел: Товары ===\n";
+                std::wcout << L"1. Показать все товары\n";
+                std::wcout << L"2. Добавить новый товар\n";
+                std::wcout << L"3. Поиск товара\n";
+                std::wcout << L"4. Товары с низким остатком\n";
+                std::wcout << L"0. Назад\n";
+                std::wcout << L"Ваш выбор: ";
+
+                int subChoice;
+                std::wcin >> subChoice;
+
+                ProductService productService(db);
+
+                switch (subChoice) {
+                case 1: productService.showAll(); break;
+                case 2: productService.addProduct(); break;
+                case 3: productService.searchProduct(); break;
+                case 4: productService.showLowStock(); break;
+                case 0: break;
+                default: std::wcout << L"Неверный выбор.\n";
+                }
+                break;
+            }
+            case 2: {
+                // === ПОСТАВЩИКИ ===
+                std::wcout << L"\n=== Раздел: Поставщики ===\n";
+                std::wcout << L"1. Показать всех поставщиков\n";
+                std::wcout << L"2. Добавить нового поставщика\n";
+                std::wcout << L"3. Поиск поставщика\n";
+                std::wcout << L"0. Назад\n";
+                std::wcout << L"Ваш выбор: ";
+
+                int subChoice;
+                std::wcin >> subChoice;
+
+                SupplierService supplierService(db);
+
+                switch (subChoice) {
+                case 1: supplierService.showAll(); break;
+                case 2: supplierService.addSupplier(); break;
+                case 3: supplierService.searchSupplier(); break;
+                case 0: break;
+                default: std::wcout << L"Неверный выбор.\n";
+                }
+                break;
+            }
             case 3: {
+                // Регистрация продажи (уже работает)
                 if (!currentUser->canAccess(L"RegisterSale")) {
                     std::wcout << L"Доступ запрещён.\n";
                     break;
@@ -162,6 +214,7 @@ int main() {
                 break;
             }
             case 4: {
+                // Отчёты (уже работает)
                 if (!currentUser->canAccess(L"ViewReports")) {
                     std::wcout << L"Доступ запрещён.\n";
                     break;
@@ -185,12 +238,42 @@ int main() {
                 }
                 break;
             }
+            case 5: {
+                // === СОТРУДНИКИ (только для директора) ===
+                if (!currentUser->canAccess(L"ManageUsers")) {
+                    std::wcout << L"Доступ запрещён. Функция доступна только директору.\n";
+                    break;
+                }
+
+                std::wcout << L"\n=== Раздел: Сотрудники ===\n";
+                std::wcout << L"1. Показать всех сотрудников\n";
+                std::wcout << L"2. Заблокировать пользователя\n";
+                std::wcout << L"3. Разблокировать пользователя\n";
+                std::wcout << L"4. Журнал операций\n";
+                std::wcout << L"0. Назад\n";
+                std::wcout << L"Ваш выбор: ";
+
+                int subChoice;
+                std::wcin >> subChoice;
+
+                UserService userService(db);
+
+                switch (subChoice) {
+                case 1: userService.showAllUsers(); break;
+                case 2: userService.blockUser(); break;
+                case 3: userService.unblockUser(); break;
+                case 4: userService.showAuditLog(); break;
+                case 0: break;
+                default: std::wcout << L"Неверный выбор.\n";
+                }
+                break;
+            }
             case 0:
                 running = false;
                 std::wcout << L"Завершение работы...\n";
                 break;
             default:
-                std::wcout << L"Функция в разработке.\n";
+                std::wcout << L"Неверный выбор.\n";
             }
         }
 
